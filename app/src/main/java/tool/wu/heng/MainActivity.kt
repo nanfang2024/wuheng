@@ -1090,7 +1090,7 @@ private fun VideoPreview(
                 // 静音按钮
                 IconButton(onClick = { isMuted = !isMuted }) {
                     Icon(
-                        imageVector = if (isMuted) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
+                        imageVector = if (isMuted) Icons.AutoMirrored.Outlined.VolumeOff else Icons.AutoMirrored.Outlined.VolumeUp,
                         contentDescription = if (isMuted) "取消静音" else "静音",
                         tint = Color.White
                     )

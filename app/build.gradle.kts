@@ -46,6 +46,12 @@ android {
             optimization {
                 enable = true
             }
+            signingConfig = signingConfigs.create("release") {
+                storeFile = file("../release.keystore")
+                storePassword = "wuheng123"
+                keyAlias = "wuheng"
+                keyPassword = "wuheng123"
+            }
         }
     }
     compileOptions {
