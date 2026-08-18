@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "即取"
+rootProject.name = "无痕"
 include(":app")

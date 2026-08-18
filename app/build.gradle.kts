@@ -13,7 +13,7 @@ val localProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.jiqu.app"
+    namespace = "tool.wu.heng"
     compileSdk {
         version = release(37) {
             minorApiLevel = 0
@@ -21,11 +21,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.jiqu.app"
+        applicationId = "tool.wu.heng"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1508
-        versionName = "1.5.8"
+        versionCode = 1
+        versionName = "1.0"
 
         val configuredBugpkApiKey = providers.gradleProperty("bugpkApiKey")
             .orElse(providers.environmentVariable("BUGPK_API_KEY"))
