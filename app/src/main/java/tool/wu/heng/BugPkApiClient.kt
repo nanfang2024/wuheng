@@ -305,7 +305,7 @@ internal class BugPkApiClient(
         }
     }
 
-    private fun requestWithRetry(sharedUrl: String): JSONObject {
+    private suspend fun requestWithRetry(sharedUrl: String): JSONObject {
         var lastResponse: JSONObject? = null
         var lastError: Throwable? = null
 
@@ -321,7 +321,7 @@ internal class BugPkApiClient(
             }
 
             if (attempt < PARSE_REQUEST_ATTEMPTS - 1) {
-                Thread.sleep(PARSE_RETRY_DELAY_MILLIS * (attempt + 1))
+                kotlinx.coroutines.delay(PARSE_RETRY_DELAY_MILLIS * (attempt + 1))
             }
         }
 

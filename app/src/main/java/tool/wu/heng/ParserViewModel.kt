@@ -2,6 +2,7 @@ package tool.wu.heng
 
 import android.app.Application
 import android.content.Context
+import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
@@ -16,7 +17,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -308,7 +308,7 @@ internal class ParserViewModel(application: Application) : AndroidViewModel(appl
         if (Looper.myLooper() == Looper.getMainLooper()) {
             updateState()
         } else {
-            runBlocking(Dispatchers.Main.immediate) { updateState() }
+            Handler(Looper.getMainLooper()).post { updateState() }
         }
     }
 

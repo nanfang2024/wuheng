@@ -29,6 +29,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -1817,70 +1819,72 @@ private fun HistoryPage(
 ) {
     var isSelecting by rememberSaveable { mutableStateOf(false) }
     var selectedUrls by remember { mutableStateOf(emptySet<String>()) }
-    val scrollState = rememberScrollState()
     val allHistoryUrlsSelected = areAllHistoryUrlsSelected(history, selectedUrls)
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .verticalScroll(scrollState)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("历史记录", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            IconButton(
-                enabled = history.isNotEmpty(),
-                onClick = {
-                    isSelecting = true
-                    selectedUrls = if (allHistoryUrlsSelected) {
-                        emptySet()
-                    } else {
-                        historySourceUrls(history)
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("历史记录", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                IconButton(
+                    enabled = history.isNotEmpty(),
+                    onClick = {
+                        isSelecting = true
+                        selectedUrls = if (allHistoryUrlsSelected) {
+                            emptySet()
+                        } else {
+                            historySourceUrls(history)
+                        }
                     }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.SelectAll,
+                        contentDescription = if (allHistoryUrlsSelected) "取消全选历史记录" else "全选历史记录",
+                        tint = if (history.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                    )
                 }
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.SelectAll,
-                    contentDescription = if (allHistoryUrlsSelected) "取消全选历史记录" else "全选历史记录",
-                    tint = if (history.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                )
-            }
-            IconButton(onClick = {
-                isSelecting = !isSelecting
-                if (!isSelecting) selectedUrls = emptySet()
-            }) {
-                Icon(
-                    imageVector = if (isSelecting) Icons.Outlined.Done else Icons.Outlined.CheckCircle,
-                    contentDescription = if (isSelecting) "完成多选" else "多选记录",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            IconButton(
-                enabled = selectedUrls.isNotEmpty(),
-                onClick = {
-                    onDelete(selectedUrls)
-                    selectedUrls = emptySet()
-                    isSelecting = false
+                IconButton(onClick = {
+                    isSelecting = !isSelecting
+                    if (!isSelecting) selectedUrls = emptySet()
+                }) {
+                    Icon(
+                        imageVector = if (isSelecting) Icons.Outlined.Done else Icons.Outlined.CheckCircle,
+                        contentDescription = if (isSelecting) "完成多选" else "多选记录",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
-            ) {
-                Icon(
-                    Icons.Outlined.Delete,
-                    contentDescription = "删除选中记录",
-                    tint = if (selectedUrls.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                )
+                IconButton(
+                    enabled = selectedUrls.isNotEmpty(),
+                    onClick = {
+                        onDelete(selectedUrls)
+                        selectedUrls = emptySet()
+                        isSelecting = false
+                    }
+                ) {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = "删除选中记录",
+                        tint = if (selectedUrls.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                    )
+                }
             }
         }
         if (history.isEmpty()) {
-            Text(
-                "暂无解析记录",
-                modifier = Modifier.padding(top = 24.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            item {
+                Text(
+                    "暂无解析记录",
+                    modifier = Modifier.padding(top = 24.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
-        history.forEach { entry ->
+        itemsIndexed(history, key = { _, entry -> entry.sourceUrl }) { _, entry ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
