@@ -17,7 +17,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Log
-import android.view.TextureView
+import android.view.SurfaceView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -48,6 +48,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -77,6 +78,8 @@ import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.outlined.VolumeOff
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -102,6 +105,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -112,11 +116,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -139,6 +146,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import kotlinx.coroutines.CoroutineScope
@@ -744,6 +752,7 @@ private fun VideoPreview(
     onVideoMetadataResolved: (String, VideoTechnicalMetadata) -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val lifecycleOwner = context.findActivity() as? LifecycleOwner
     val metadataResolvedCallback by rememberUpdatedState(onVideoMetadataResolved)
     val previewCandidates = previewCandidateUrls(media.previewUrl, media.videoDownloads)
@@ -751,6 +760,7 @@ private fun VideoPreview(
         previewCandidates.firstOrNull()?.let { createPreviewPlayer(context.applicationContext, it) }
     }
     var activeCandidateIndex by remember(previewCandidates, previewSessionKey) { mutableIntStateOf(0) }
+    var retryCountForCurrentSource by remember(previewCandidates, previewSessionKey) { mutableIntStateOf(0) }
     var sourceStartedAtMillis by remember(previewCandidates, previewSessionKey) {
         mutableLongStateOf(SystemClock.elapsedRealtime())
     }
@@ -765,6 +775,26 @@ private fun VideoPreview(
     var videoWidthPx by remember(media.previewUrl, previewSessionKey) { mutableIntStateOf(0) }
     var videoHeightPx by remember(media.previewUrl, previewSessionKey) { mutableIntStateOf(0) }
     var previewError by remember(media.previewUrl, previewSessionKey) { mutableStateOf<String?>(null) }
+    var isFullscreen by remember(media.previewUrl, previewSessionKey) { mutableStateOf(false) }
+    var seekDeltaText by remember { mutableStateOf<String?>(null) }
+    // 保存播放位置,Activity 重建(如旋转屏幕)后可恢复
+    var savedPlaybackPosition by rememberSaveable(media.previewUrl) { mutableLongStateOf(0L) }
+    // 播放倍速:0.5x / 1.0x / 1.5x / 2.0x
+    var playbackSpeed by remember(media.previewUrl, previewSessionKey) { mutableFloatStateOf(1f) }
+    // 静音状态
+    var isMuted by remember(media.previewUrl, previewSessionKey) { mutableStateOf(false) }
+    LaunchedEffect(playbackSpeed, player) {
+        player?.setPlaybackParameters(PlaybackParameters(playbackSpeed))
+    }
+    LaunchedEffect(isMuted, player) {
+        player?.volume = if (isMuted) 0f else 1f
+    }
+
+    // 根据解析到的视频尺寸动态计算宽高比,默认 16:9
+    val videoAspectRatio = remember(videoWidthPx, videoHeightPx) {
+        if (videoWidthPx > 0 && videoHeightPx > 0) videoWidthPx.toFloat() / videoHeightPx
+        else 16f / 9f
+    }
 
     LaunchedEffect(player, isPlaying) {
         while (isPlaying) {
@@ -829,9 +859,26 @@ private fun VideoPreview(
 
             override fun onPlayerError(error: PlaybackException) {
                 isPlaying = false
+                // 首次失败时重试同一源(网络抖动常见),二次失败才切换候选源
+                if (retryCountForCurrentSource < PREVIEW_MAX_RETRY_PER_SOURCE && isTransientPlaybackError(error)) {
+                    retryCountForCurrentSource++
+                    Log.d(
+                        PERFORMANCE_LOG_TAG,
+                        "preview_retry_same_source candidate=${activeCandidateIndex + 1} " +
+                            "attempt=$retryCountForCurrentSource errorCode=${error.errorCodeName}"
+                    )
+                    player?.let { activePlayer ->
+                        activePlayer.seekTo(0)
+                        activePlayer.prepare()
+                        activePlayer.playWhenReady = true
+                    }
+                    return
+                }
+                // 重试耗尽,切换到下一个候选源
                 val nextCandidateIndex = activeCandidateIndex + 1
                 if (nextCandidateIndex < previewCandidates.size) {
                     activeCandidateIndex = nextCandidateIndex
+                    retryCountForCurrentSource = 0
                     sourceStartedAtMillis = SystemClock.elapsedRealtime()
                     hasLoggedReady = false
                     hasLoggedFirstFrame = false
@@ -854,7 +901,12 @@ private fun VideoPreview(
             }
         }
         val lifecycleObserver = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) player?.pause()
+            if (event == Lifecycle.Event.ON_STOP) {
+                player?.let { activePlayer ->
+                    savedPlaybackPosition = activePlayer.currentPosition
+                    activePlayer.pause()
+                }
+            }
         }
         player?.addListener(listener)
         lifecycleOwner?.lifecycle?.addObserver(lifecycleObserver)
@@ -863,6 +915,10 @@ private fun VideoPreview(
             isBuffering = activePlayer.playbackState == Player.STATE_IDLE ||
                 activePlayer.playbackState == Player.STATE_BUFFERING
             durationMillis = playbackDurationMillis(activePlayer.duration)
+            // 恢复之前保存的播放位置
+            if (savedPlaybackPosition > 0) {
+                activePlayer.seekTo(savedPlaybackPosition)
+            }
         }
         onDispose {
             lifecycleOwner?.lifecycle?.removeObserver(lifecycleObserver)
@@ -880,21 +936,47 @@ private fun VideoPreview(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
+                    .then(
+                        if (isFullscreen) Modifier.fillMaxHeight()
+                        else Modifier.aspectRatio(videoAspectRatio)
+                    )
                     .onSizeChanged { previewWidthPx = it.width.coerceAtLeast(1) }
+                    .pointerInput(player, durationMillis) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                isFullscreen = !isFullscreen
+                                if (isFullscreen) {
+                                    player?.play()
+                                }
+                            }
+                        )
+                    }
                     .pointerInput(player, durationMillis) {
                         detectHorizontalDragGestures(
                             onDragStart = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 positionMillis = player?.currentPosition
                                     ?.let(::playbackDurationMillis)
                                     ?: positionMillis
                             },
                             onHorizontalDrag = { _, dragAmount ->
-                                val updatedPosition = (positionMillis + dragAmount / previewWidthPx * durationMillis)
+                                val deltaMillis = (dragAmount / previewWidthPx * durationMillis).toInt()
+                                val updatedPosition = (positionMillis + deltaMillis)
                                     .toInt()
                                     .coerceIn(0, durationMillis)
                                 positionMillis = updatedPosition
                                 player?.seekTo(updatedPosition.toLong())
+                                // 显示快进/快退提示
+                                val deltaSeconds = deltaMillis / 1000
+                                if (deltaSeconds != 0) {
+                                    seekDeltaText = "${if (deltaSeconds > 0) "+" else ""}${deltaSeconds}s"
+                                }
+                            },
+                            onDragEnd = {
+                                seekDeltaText = null
+                            },
+                            onDragCancel = {
+                                seekDeltaText = null
                             }
                         )
                     },
@@ -904,22 +986,12 @@ private fun VideoPreview(
                     player?.let { activePlayer ->
                         AndroidView(
                             factory = {
-                                TextureView(context).also { textureView ->
-                                    activePlayer.setVideoTextureView(textureView)
-                                    val videoSize = activePlayer.videoSize
-                                    fitTextureToVideo(
-                                        textureView = textureView,
-                                        videoWidth = videoWidthPx.takeIf { it > 0 } ?: videoSize.width,
-                                        videoHeight = videoHeightPx.takeIf { it > 0 } ?: videoSize.height
-                                    )
+                                SurfaceView(context).also { surfaceView ->
+                                    activePlayer.setVideoSurfaceView(surfaceView)
                                 }
                             },
-                            update = { textureView ->
-                                fitTextureToVideo(
-                                    textureView = textureView,
-                                    videoWidth = videoWidthPx,
-                                    videoHeight = videoHeightPx
-                                )
+                            update = { _ ->
+                                // SurfaceView 由 ExoPlayer 内部管理视频缩放,无需手动设置 scale
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -941,6 +1013,22 @@ private fun VideoPreview(
                         modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                // 拖拽快进/快退提示
+                seekDeltaText?.let { text ->
+                    Text(
+                        text = text,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .background(
+                                color = Color.Black.copy(alpha = 0.6f),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -981,6 +1069,32 @@ private fun VideoPreview(
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall
                 )
+                // 倍速切换按钮
+                TextButton(
+                    onClick = {
+                        playbackSpeed = when (playbackSpeed) {
+                            0.5f -> 1f
+                            1f -> 1.5f
+                            1.5f -> 2f
+                            else -> 0.5f
+                        }
+                    },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = "${playbackSpeed}x",
+                        color = if (playbackSpeed != 1f) MaterialTheme.colorScheme.primary else Color.White,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                // 静音按钮
+                IconButton(onClick = { isMuted = !isMuted }) {
+                    Icon(
+                        imageVector = if (isMuted) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
+                        contentDescription = if (isMuted) "取消静音" else "静音",
+                        tint = Color.White
+                    )
+                }
             }
         }
     }
@@ -1424,13 +1538,21 @@ private fun formatPlaybackTime(milliseconds: Int): String {
 private fun isMediaPlayerPlaying(mediaPlayer: MediaPlayer): Boolean =
     runCatching { mediaPlayer.isPlaying }.getOrDefault(false)
 
-private fun fitTextureToVideo(textureView: TextureView, videoWidth: Int, videoHeight: Int) {
-    val scale = calculateVideoScale(textureView.width, textureView.height, videoWidth, videoHeight)
-    textureView.scaleX = scale.scaleX
-    textureView.scaleY = scale.scaleY
+private const val PROGRESS_UPDATE_INTERVAL_MILLIS = 250L
+
+// 同一预览源最大重试次数(首次失败重试一次,二次失败才切换候选源)
+private const val PREVIEW_MAX_RETRY_PER_SOURCE = 1
+
+// 判断是否为瞬时性播放错误(网络抖动等),可安全重试
+private fun isTransientPlaybackError(error: PlaybackException): Boolean {
+    val errorCode = error.errorCode
+    return errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+        errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+        errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE ||
+        errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+        errorCode == PlaybackException.ERROR_CODE_TIMEOUT
 }
 
-private const val PROGRESS_UPDATE_INTERVAL_MILLIS = 250L
 private const val PERFORMANCE_LOG_TAG = "WuHengPerformance"
 private const val COVER_CONNECT_TIMEOUT_MILLIS = 10_000
 private const val COVER_READ_TIMEOUT_MILLIS = 15_000
