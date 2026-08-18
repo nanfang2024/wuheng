@@ -151,4 +151,4 @@ private object PreviewVideoCache {
 
 private const val PREVIEW_CACHE_DIRECTORY_NAME = "preview-video"
 private const val PREVIEW_CACHE_MAXIMUM_BYTES = 50L * 1024L * 1024L
-private const val PERFORMANCE_LOG_TAG = "JiquPerformance"
+private const val PERFORMANCE_LOG_TAG = "WuHengPerformance"

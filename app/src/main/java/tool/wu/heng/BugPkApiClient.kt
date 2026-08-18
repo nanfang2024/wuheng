@@ -338,7 +338,7 @@ internal class BugPkApiClient(
             connectTimeout = CONNECT_TIMEOUT_MILLIS
             readTimeout = READ_TIMEOUT_MILLIS
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "Jiqu-Android/1.0")
+            setRequestProperty("User-Agent", "WuHeng-Android/1.0")
             setRequestProperty("X-API-Key", apiKey)
         }
         return try {
@@ -710,4 +710,4 @@ private val COVER_URL_KEYS = listOf(
 )
 private val COVER_FALLBACK_KEYS = listOf("images", "image_list", "image_urls", "pictures")
 private val COVER_OBJECT_URL_KEYS = listOf("url", "image", "src", "uri", "url_list", "urlList")
-private const val PERFORMANCE_LOG_TAG = "JiquPerformance"
+private const val PERFORMANCE_LOG_TAG = "WuHengPerformance"

@@ -7,7 +7,6 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.Intent
 import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.media.MediaMetadataRetriever
@@ -163,7 +162,7 @@ import java.util.LinkedHashMap
 import java.util.Locale
 import kotlin.math.abs
 import tool.wu.heng.ui.theme.ThemeMode
-import tool.wu.heng.ui.theme.即取Theme
+import tool.wu.heng.ui.theme.无痕Theme
 
 private val PageShape = RoundedCornerShape(12.dp)
 private val SmallShape = RoundedCornerShape(8.dp)
@@ -203,9 +202,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val parserViewModel: ParserViewModel = viewModel()
-            val updateViewModel: UpdateViewModel = viewModel()
-            即取Theme(themeMode = parserViewModel.themeMode) {
-                JinanMediaApp(parserViewModel, updateViewModel)
+            无痕Theme(themeMode = parserViewModel.themeMode) {
+                JinanMediaApp(parserViewModel)
             }
         }
     }
@@ -213,19 +211,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun JinanMediaApp(
-    parserViewModel: ParserViewModel,
-    updateViewModel: UpdateViewModel
+    parserViewModel: ParserViewModel
 ) {
     val context = LocalContext.current
     var selectedPage by rememberSaveable { mutableStateOf(MainPage.Parse) }
     var previewSessionKey by rememberSaveable { mutableIntStateOf(0) }
-    val updateCheckMessage = updateViewModel.checkMessage
-    LaunchedEffect(updateCheckMessage) {
-        updateCheckMessage?.let { message ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-            updateViewModel.consumeCheckMessage()
-        }
-    }
     val navigateToPage: (MainPage) -> Unit = { page ->
         if (page == MainPage.Parse && selectedPage != MainPage.Parse) previewSessionKey++
         selectedPage = page
@@ -275,7 +265,6 @@ private fun JinanMediaApp(
             MainPage.Settings -> SettingsPage(
                 paddingValues = paddingValues,
                 parserViewModel = parserViewModel,
-                updateViewModel = updateViewModel,
                 onNavigateUp = { navigateToPage(MainPage.Parse) }
             )
         }
@@ -287,101 +276,6 @@ private fun JinanMediaApp(
             onCancel = parserViewModel::cancelDownload,
             onClose = parserViewModel::dismissDownloadTask
         )
-    }
-
-    updateViewModel.availableUpdate?.let { update ->
-        AppUpdateDialog(
-            update = update,
-            onDismiss = updateViewModel::dismissUpdate,
-            onGitHubUpdate = {
-                context.openExternalUrl(update.downloadUrl)
-                updateViewModel.dismissUpdate()
-            },
-            onLanzouUpdate = {
-                if (context.copyLanzouExtractCode()) {
-                    Handler(Looper.getMainLooper()).postDelayed(
-                        { context.openExternalUrl(LANZOU_UPDATE_URL) },
-                        LANZOU_UPDATE_OPEN_DELAY_MS
-                    )
-                }
-                updateViewModel.dismissUpdate()
-            }
-        )
-    }
-}
-
-@Composable
-private fun AppUpdateDialog(
-    update: AppUpdate,
-    onDismiss: () -> Unit,
-    onGitHubUpdate: () -> Unit,
-    onLanzouUpdate: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 540.dp),
-            shape = PageShape,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("发现新版本", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(
-                    text = "v${update.versionName}" + update.assetSizeBytes.toDisplayFileSize(),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "点击蓝奏云后，提取码会自动复制到剪贴板：$LANZOU_EXTRACT_CODE",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                if (update.releaseNotes.isNotBlank()) {
-                    Text(
-                        text = update.releaseNotes,
-                        modifier = Modifier
-                            .heightIn(max = 236.dp)
-                            .verticalScroll(rememberScrollState()),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = onGitHubUpdate,
-                        modifier = Modifier.weight(1f),
-                        shape = SmallShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Icon(Icons.Outlined.SystemUpdate, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("GitHub")
-                    }
-                    Button(
-                        onClick = onLanzouUpdate,
-                        modifier = Modifier.weight(1f),
-                        shape = SmallShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    ) {
-                        Icon(Icons.Outlined.CloudDownload, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("蓝奏云")
-                    }
-                }
-                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("稍后再说")
-                }
-            }
-        }
     }
 }
 
@@ -1535,7 +1429,7 @@ private fun fitTextureToVideo(textureView: TextureView, videoWidth: Int, videoHe
 }
 
 private const val PROGRESS_UPDATE_INTERVAL_MILLIS = 250L
-private const val PERFORMANCE_LOG_TAG = "JiquPerformance"
+private const val PERFORMANCE_LOG_TAG = "WuHengPerformance"
 private const val COVER_CONNECT_TIMEOUT_MILLIS = 10_000
 private const val COVER_READ_TIMEOUT_MILLIS = 15_000
 private const val COVER_USER_AGENT = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
@@ -1902,7 +1796,7 @@ private const val DOWNLOAD_BUFFER_SIZE = 32 * 1024
 private const val DOWNLOAD_PROGRESS_UPDATE_INTERVAL_MILLIS = 150L
 private const val DOWNLOAD_MAXIMUM_PARALLEL_WORKERS = 20
 private const val DOWNLOAD_MINIMUM_SEGMENT_BYTES = 1_048_576L
-private const val DOWNLOAD_TEMP_FILE_PREFIX = "jiqu-download-"
+private const val DOWNLOAD_TEMP_FILE_PREFIX = "wu-heng-download-"
 private const val DOWNLOAD_TEMP_FILE_SUFFIX = ".part"
 private const val DOWNLOAD_USER_AGENT = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
 private val CONTENT_RANGE_TOTAL_BYTES = Regex("bytes\\s+\\d+-\\d+/(\\d+)", RegexOption.IGNORE_CASE)
@@ -1913,35 +1807,6 @@ private fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
-private fun Context.openExternalUrl(url: String) {
-    startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
-}
-
-private fun Context.copyLanzouExtractCode(): Boolean {
-    val clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-    if (clipboardManager == null) {
-        Toast.makeText(this, "无法访问系统剪贴板，请手动输入提取码：$LANZOU_EXTRACT_CODE", Toast.LENGTH_LONG).show()
-        return false
-    }
-
-    clipboardManager.setPrimaryClip(ClipData.newPlainText("蓝奏云提取码", LANZOU_EXTRACT_CODE))
-    val copiedText = clipboardManager.primaryClip
-        ?.getItemAt(0)
-        ?.coerceToText(this)
-        ?.toString()
-    val copied = copiedText == LANZOU_EXTRACT_CODE
-    Toast.makeText(
-        this,
-        if (copied) "蓝奏云提取码已复制：$LANZOU_EXTRACT_CODE" else "复制失败，请手动输入提取码：$LANZOU_EXTRACT_CODE",
-        Toast.LENGTH_LONG
-    ).show()
-    return copied
-}
-
-private const val OPEN_SOURCE_URL = "https://github.com/dhvbjvvb/jiqu"
-private const val LANZOU_UPDATE_URL = "https://wwbjl.lanzout.com/b01d74gqdc"
-private const val LANZOU_EXTRACT_CODE = "3nwk"
-private const val LANZOU_UPDATE_OPEN_DELAY_MS = 300L
 
 @Composable
 private fun HistoryPage(
@@ -2102,20 +1967,17 @@ private fun HistoryEntryRow(
 private fun SettingsPage(
     paddingValues: PaddingValues,
     parserViewModel: ParserViewModel,
-    updateViewModel: UpdateViewModel,
     onNavigateUp: () -> Unit
 ) {
     val context = LocalContext.current
     var isParserPreferencesPageVisible by rememberSaveable { mutableStateOf(false) }
     var isThemeSettingsPageVisible by rememberSaveable { mutableStateOf(false) }
     var isStoragePageVisible by rememberSaveable { mutableStateOf(false) }
-    var isFeedbackPageVisible by rememberSaveable { mutableStateOf(false) }
     BackHandler {
         when {
             isParserPreferencesPageVisible -> isParserPreferencesPageVisible = false
             isThemeSettingsPageVisible -> isThemeSettingsPageVisible = false
             isStoragePageVisible -> isStoragePageVisible = false
-            isFeedbackPageVisible -> isFeedbackPageVisible = false
             else -> onNavigateUp()
         }
     }
@@ -2140,10 +2002,6 @@ private fun SettingsPage(
         StorageSettingsPage(paddingValues = paddingValues, onBack = { isStoragePageVisible = false })
         return
     }
-    if (isFeedbackPageVisible) {
-        FeedbackSettingsPage(paddingValues = paddingValues, onBack = { isFeedbackPageVisible = false })
-        return
-    }
     val scrollState = rememberScrollState()
 
     Column(
@@ -2166,20 +2024,6 @@ private fun SettingsPage(
         SupportedPlatformsCard()
         SettingsGroup("关于") {
             SettingsValueRow("当前版本", Icons.Outlined.Info, BuildConfig.VERSION_NAME, showChevron = false)
-            SettingsValueRow(
-                label = "检查更新",
-                icon = Icons.Outlined.SystemUpdate,
-                value = if (updateViewModel.isChecking) "正在检查" else "",
-                showChevron = !updateViewModel.isChecking,
-                onClick = { updateViewModel.checkForUpdate(force = true) }
-            )
-            SettingsValueRow(
-                label = "开源地址",
-                icon = Icons.Outlined.Language,
-                value = "dhvbjvvb/jiqu",
-                onClick = { context.openExternalUrl(OPEN_SOURCE_URL) }
-            )
-            SettingsValueRow("意见反馈", Icons.Outlined.Forum, "", onClick = { isFeedbackPageVisible = true })
         }
     }
 }
@@ -2250,25 +2094,9 @@ private fun SettingsSubpageLayout(
 private fun StorageSettingsPage(paddingValues: PaddingValues, onBack: () -> Unit) {
     SettingsSubpageLayout(title = "下载与存储", paddingValues = paddingValues, onBack = onBack) {
         SettingsGroup("保存位置") {
-            SettingsValueRow("图片保存位置", Icons.Outlined.Image, "Download\\Jiqu\\Picture", showChevron = false)
-            SettingsValueRow("音频保存位置", Icons.Outlined.PlayArrow, "Download\\Jiqu\\Music", showChevron = false)
-            SettingsValueRow("视频，动图保存位置", Icons.Outlined.VideoLibrary, "Download\\Jiqu\\video", showChevron = false)
-        }
-    }
-}
-
-@Composable
-private fun FeedbackSettingsPage(paddingValues: PaddingValues, onBack: () -> Unit) {
-    SettingsSubpageLayout(title = "意见反馈", paddingValues = paddingValues, onBack = onBack) {
-        SettingsGroup("联系我们") {
-            SettingsValueRow(
-                label = "QQ邮箱",
-                icon = Icons.Outlined.Forum,
-                value = "15150689599@qq.com",
-                valueMaxWidth = 176.dp,
-                showChevron = false
-            )
-            SettingsValueRow("制作人", Icons.Outlined.Info, "春日大阪", showChevron = false)
+            SettingsValueRow("图片保存位置", Icons.Outlined.Image, "Download\\无痕\\Picture", showChevron = false)
+            SettingsValueRow("音频保存位置", Icons.Outlined.PlayArrow, "Download\\无痕\\Music", showChevron = false)
+            SettingsValueRow("视频，动图保存位置", Icons.Outlined.VideoLibrary, "Download\\无痕\\video", showChevron = false)
         }
     }
 }
@@ -2447,5 +2275,5 @@ private fun SettingsSelectionRow(label: String, selected: Boolean, onClick: () -
 @Preview(showBackground = true)
 @Composable
 private fun JinanMediaAppPreview() {
-    即取Theme { JinanMediaApp(viewModel(), viewModel()) }
+    无痕Theme { JinanMediaApp(viewModel()) }
 }

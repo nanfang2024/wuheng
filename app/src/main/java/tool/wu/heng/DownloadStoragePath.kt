@@ -2,9 +2,9 @@ package tool.wu.heng
 
 import java.net.URI
 
-internal const val DOWNLOADS_PICTURE_RELATIVE_PATH = "Download/Jiqu/Picture"
-internal const val DOWNLOADS_MUSIC_RELATIVE_PATH = "Download/Jiqu/Music"
-internal const val DOWNLOADS_VIDEO_RELATIVE_PATH = "Download/Jiqu/video"
+internal const val DOWNLOADS_PICTURE_RELATIVE_PATH = "Download/无痕/Picture"
+internal const val DOWNLOADS_MUSIC_RELATIVE_PATH = "Download/无痕/Music"
+internal const val DOWNLOADS_VIDEO_RELATIVE_PATH = "Download/无痕/video"
 
 internal fun downloadRelativePathFor(download: ParsedDownload): String =
     when {

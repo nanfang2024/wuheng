@@ -1,4 +1,4 @@
-# 即取 Jiqu
+# 无痕
 
 <p align="center">
   <strong>轻量、快速的短视频与图集解析下载工具</strong>
@@ -6,14 +6,13 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Android-12%2B-3DDC84?logo=android&logoColor=white" alt="Android 12+" />
-  <img src="https://img.shields.io/badge/version-1.5.8-2EA7E0" alt="Version 1.5.8" />
-  <img src="https://img.shields.io/badge/R8%20release-%7E3.65%20MiB-FF8A00" alt="R8 release about 3.65 MiB" />
+  <img src="https://img.shields.io/badge/version-1.0-2EA7E0" alt="Version 1.0" />
   <img src="https://img.shields.io/badge/license-MIT-22C55E" alt="MIT License" />
 </p>
 
 > ⚡ 用更小的安装包，完成链接识别、解析、预览与下载。
 
-即取是一款 Android Compose 应用，面向常见短视频、图集与实况链接提供无水印解析和下载体验。R8 优化后的 release APK 约 **3.65 MiB**，保留完整的解析、预览、历史记录、主题与下载能力。
+无痕是一款 Android Compose 应用，面向常见短视频、图集与实况链接提供无水印解析和下载体验。release APK 保留完整的解析、预览、历史记录、主题与下载能力。
 
 ## ✨ 特性
 
@@ -30,17 +29,17 @@
 ## 📱 使用方式
 
 1. 复制一个受支持平台的分享链接。
-2. 打开即取，自动粘贴或手动粘贴链接。
-3. 点击“立即解析”。
+2. 打开无痕，自动粘贴或手动粘贴链接。
+3. 点击"立即解析"。
 4. 预览媒体，按需选择清晰度、图片或实况内容并下载。
 
 下载内容默认保存到：
 
 | 类型 | 目录 |
 | --- | --- |
-| 图片 | `Download/Jiqu/Picture` |
-| 音频 | `Download/Jiqu/Music` |
-| 视频、动图、实况 | `Download/Jiqu/video` |
+| 图片 | `Download/无痕/Picture` |
+| 音频 | `Download/无痕/Music` |
+| 视频、动图、实况 | `Download/无痕/video` |
 
 ## 🛠️ 构建
 
@@ -82,7 +81,7 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 
 ```text
 app/
-  src/main/java/com/jiqu/app/
+  src/main/java/tool/wu/heng/
     BugPkApiClient.kt        # 平台识别与解析接口
     ParserViewModel.kt       # 解析、历史与下载状态
     MainActivity.kt          # Compose UI 与下载实现

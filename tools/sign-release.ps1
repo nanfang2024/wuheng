@@ -17,10 +17,10 @@ function Get-ReleaseSigningValue([string]$name) {
     return $value
 }
 
-$releaseKeyStore = Get-ReleaseSigningValue 'JIQU_RELEASE_KEYSTORE'
-$releaseKeyAlias = Get-ReleaseSigningValue 'JIQU_RELEASE_KEY_ALIAS'
-$releaseLineage = Get-ReleaseSigningValue 'JIQU_RELEASE_LINEAGE'
-[void](Get-ReleaseSigningValue 'JIQU_RELEASE_STORE_PASSWORD')
+$releaseKeyStore = Get-ReleaseSigningValue 'WUHENG_RELEASE_KEYSTORE'
+$releaseKeyAlias = Get-ReleaseSigningValue 'WUHENG_RELEASE_KEY_ALIAS'
+$releaseLineage = Get-ReleaseSigningValue 'WUHENG_RELEASE_LINEAGE'
+[void](Get-ReleaseSigningValue 'WUHENG_RELEASE_STORE_PASSWORD')
 
 if (!(Test-Path -LiteralPath $releaseKeyStore) -or !(Test-Path -LiteralPath $releaseLineage)) {
     throw 'Release signing keystore or certificate lineage is unavailable.'
@@ -51,8 +51,8 @@ if (!$SkipBuild) {
     --v3-signing-enabled true `
     --ks $releaseKeyStore `
     --ks-key-alias $releaseKeyAlias `
-    --ks-pass env:JIQU_RELEASE_STORE_PASSWORD `
-    --key-pass env:JIQU_RELEASE_STORE_PASSWORD `
+    --ks-pass env:WUHENG_RELEASE_STORE_PASSWORD `
+    --key-pass env:WUHENG_RELEASE_STORE_PASSWORD `
     --out $signedApk `
     $unsignedApk
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

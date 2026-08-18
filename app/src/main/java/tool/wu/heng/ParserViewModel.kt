@@ -386,6 +386,6 @@ internal class ParserViewModel(application: Application) : AndroidViewModel(appl
         const val HISTORY_KEY = "parse_history"
         const val MAX_HISTORY_ENTRIES = 50
         const val HISTORY_TIMESTAMP_PATTERN = "MM-dd HH:mm"
-        const val PERFORMANCE_LOG_TAG = "JiquPerformance"
+        const val PERFORMANCE_LOG_TAG = "WuHengPerformance"
     }
 }
