@@ -232,7 +232,7 @@ internal fun apiFailureMessage(
 internal class BugPkApiClient(
     private val apiKey: String = BuildConfig.BUGPK_API_KEY
 ) {
-    fun parse(sharedText: String): ParseResult {
+    suspend fun parse(sharedText: String): ParseResult {
         val supportedLink = PlatformDetector.findSupportedLink(sharedText)
             ?: return ParseResult.Failure("仅支持哔哩哔哩、抖音、快手、皮皮虾、皮皮搞笑、今日头条、微博、微信视频号、小红书和最右链接")
         if (apiKey.isBlank()) {
